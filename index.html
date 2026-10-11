@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>加速度積分 與 GPS 測速器 longhorn 5.6</title>
+  <title>加速度積分 與 GPS 測速器 longhorn 5.7</title>
   <style>
   /* --- 基礎樣式還原 --- */
   * { box-sizing: border-box; }
@@ -562,7 +562,7 @@
   </div>
 
   <div style="text-align: center; font-size: 0.75rem; color: #555; margin-top: 15px;">
-    longhorn 5.6
+    longhorn 5.7
   </div>
 </div>
 
@@ -696,7 +696,7 @@ document.getElementById('btn-request-permission').addEventListener('click', () =
 
 document.getElementById('btn-request-gps').addEventListener('click', () => { initGpsListener(); });
 
-// 感測器監聽 (Longhorn 5.5 鐵路模式與速度/加速度過濾 0.08)
+// 感測器監聽 (Longhorn 5.7 鐵路模式專屬過濾邏輯)
 function initSensorListener() {
   window.addEventListener('devicemotion', (event) => {
     if (!event.accelerationIncludingGravity) return;
@@ -713,20 +713,15 @@ function initSensorListener() {
 
     let currentSpeedKmh = currentSpeed * 3.6;
 
-    // 鐵路模式邏輯處理
+    // 鐵路模式邏輯處理 (Longhorn 5.7)
     if (isRailwayMode) {
-      if (currentSpeedKmh > 30.0) {
-        let gradeThreshold = 0.196; // 2% 坡度重力分量
-        if (Math.abs(cleanAccelY) < gradeThreshold) {
+      if (currentSpeedKmh > 40.0) {
+        // 大於 40 km/h 且加速度小於 0.07 m/s² 時濾除
+        if (Math.abs(cleanAccelY) < 0.07) {
           cleanAccelY = 0.0;
         }
-      } else if (currentSpeedKmh > 8.0 && Math.abs(cleanAccelY) < 0.05) {
-        cleanAccelY = 0.0;
       }
-    }
-
-    if (currentSpeedKmh > 40.0 && Math.abs(cleanAccelY) < 0.05) {
-      cleanAccelY = 0.0;
+      // 若小於 40 km/h 則不進行額外篩選，完全交由低通濾波處理
     }
     
     accelValEl.textContent = cleanAccelY.toFixed(3);
@@ -1186,7 +1181,6 @@ function trySaveRecordOnStop() {
   }
 }
 
-// 修正後：按下停止積分時直接呼叫存檔
 btnToggleAccel.addEventListener('click', async () => {
   if (!isCalibrated && !isAccelRecording) {
     if (!confirm("⚠️ 尚未執行矯正歸零，建議在車站靜止時按下「矯正歸零」！確定直接開始？")) return;
@@ -1202,7 +1196,6 @@ btnToggleAccel.addEventListener('click', async () => {
   }
 });
 
-// 修正後：按下停止 GPS 時直接呼叫存檔
 btnToggleGps.addEventListener('click', async () => {
   if (gpsWatchId === null && !isGpsRecording) initGpsListener();
   isGpsRecording = !isGpsRecording;
